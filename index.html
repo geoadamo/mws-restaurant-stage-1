@@ -10,31 +10,43 @@
 </head>
 
 <body>
-  <header>
-    <nav>
-      <h1><a href="/">Restaurant Reviews</a></h1>
+  <header tabindex="-1">
+    <nav tabindex="-1">
+      <h1><a href="/" tabindex="0">Restaurant Reviews</a></h1>
     </nav>
   </header>
 
   <main id="maincontent">
-    <section id="map-container" aria-hidden="true">
-      <div id="map" aria-hidden="true"></div>
+    <section id="map-container">
+      <div id="map" role="application" aria-label="Google Maps"></div>
     </section>
-    <section class="filter-options-section">
-      <div class="filter-options">
-        <h2 align="center">Filter Results</h2>
-        <select id="neighborhoods-select" name="neighborhoods" aria-label="Select Neighborhood" onchange="updateRestaurants()">
+    <section class="filter-options-section" tabindex="-1">
+      <div class="filter-options" tabindex="-1">
+        <h2 align="center" tabindex="0" aria-label="Filter results by neighborhood and cuisine">Filter Results</h2>
+        <select id="neighborhoods-select" name="neighborhoods" aria-label="Filter by Neighborhood" onchange="updateRestaurants()">
           <option value="all">All Neighborhoods</option>
         </select>
-        <select id="cuisines-select" name="cuisines" aria-label="Select Cuisine" onchange="updateRestaurants()">
+        <select id="cuisines-select" name="cuisines" aria-label="Filter by Cuisine" onchange="updateRestaurants()">
           <option value="all">All Cuisines</option>
         </select>
+        <div aria-live="polite" id="filtered-results"></div>
       </div>
     </section>
   <section>
       <div id="restaurants-list"></div>
     </section>
   </main>
+  <script>
+    if ('serviceWorker' in navigator) {
+       navigator.serviceWorker.register('service-worker.js')
+       .then(function(registration) {
+
+       })
+       .catch(function(error) {
+        console.error(error);
+       });
+     }
+     </script>
 
   <script type="application/javascript" charset="utf-8" src="js/dbhelper.js"></script>
   <script type="application/javascript" charset="utf-8" src="js/main.js"></script>
@@ -44,6 +56,7 @@
   <footer id="footer">
     Copyright (c) 2017 <a href="/"><strong>Restaurant Reviews</strong></a> All Rights Reserved.
   </footer>
+
 
 </body>
 

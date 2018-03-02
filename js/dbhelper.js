@@ -8,16 +8,16 @@ class DBHelper {
    * Change this to restaurants.json file location on your server.
    */
   static get DATABASE_URL() {
-    const port = 8000 // Change this to your server port
+    const port = 8887 // Change this to your server port
 
     switch (document.location.hostname)
 	  {
-		
+
 			case 'localhost' :
-        return `http://localhost/2018/udacity/mws-restaurant-stage-1/data/restaurants.json`; 
+        return `http://localhost/2018/udacity/mws-restaurant-stage-1/data/restaurants.json`;
         break;
-      default :  
-        return `http://localhost:${port}/data/restaurants.json`;
+      default :
+        return `http://127.0.0.1:${port}/data/restaurants.json`;
   	}
 
 
@@ -164,13 +164,13 @@ class DBHelper {
     switch (document.location.hostname)
 	  {
 			case 'localhost' :
-        return (`img/${restaurant.photograph}`); 
+        return (`img/${restaurant.photograph}`);
         break;
-      default :  
+      default :
         return (`/img/${restaurant.photograph}`);
   	}
 
-   
+
   }
 
   /**

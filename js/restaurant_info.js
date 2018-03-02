@@ -9,17 +9,25 @@ window.initMap = () => {
     if (error) { // Got an error!
       console.error(error);
     } else {
+
       self.map = new google.maps.Map(document.getElementById('map'), {
         zoom: 16,
         center: restaurant.latlng,
         scrollwheel: false
       });
+      google.maps.event.addListenerOnce(self.map, 'tilesloaded', MapReady);
       fillBreadcrumb();
       DBHelper.mapMarkerForRestaurant(self.restaurant, self.map);
+
     }
   });
 }
-
+function MapReady(){
+  /*
+  When map is loaded, focus on the restaurant name element for screen reader
+  */
+  document.getElementById('restaurant-name').focus();
+}
 /**
  * Get current restaurant from page URL.
  */
@@ -51,13 +59,17 @@ fetchRestaurantFromURL = (callback) => {
 fillRestaurantHTML = (restaurant = self.restaurant) => {
   const name = document.getElementById('restaurant-name');
   name.innerHTML = restaurant.name;
-
-  const address = document.getElementById('restaurant-address');
-  address.innerHTML = restaurant.address;
+  name.setAttribute('aria-label',`${restaurant.name}, ${restaurant.cuisine_type} cuisine`)
 
   const image = document.getElementById('restaurant-img');
   image.className = 'restaurant-img'
+  image.alt=`${restaurant.name} ${restaurant.cuisine_type} Cuisine`;
   image.src = DBHelper.imageUrlForRestaurant(restaurant);
+
+
+  const address = document.getElementById('restaurant-address');
+  address.innerHTML = restaurant.address;
+  address.setAttribute('aria-label',`address ${restaurant.address}`);
 
   const cuisine = document.getElementById('restaurant-cuisine');
   cuisine.innerHTML = restaurant.cuisine_type;
@@ -68,6 +80,7 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
   }
   // fill reviews
   fillReviewsHTML();
+
 }
 
 /**
@@ -75,17 +88,20 @@ fillRestaurantHTML = (restaurant = self.restaurant) => {
  */
 fillRestaurantHoursHTML = (operatingHours = self.restaurant.operating_hours) => {
   const hours = document.getElementById('restaurant-hours');
+  let aa=1;
   for (let key in operatingHours) {
     const row = document.createElement('tr');
 
     const day = document.createElement('td');
     day.innerHTML = key;
+    day.setAttribute('tabindex',0);
+    day.setAttribute('aria-label',`${key} : ${operatingHours[key]}`);
+    aa++;
     row.appendChild(day);
 
     const time = document.createElement('td');
     time.innerHTML = operatingHours[key];
     row.appendChild(time);
-
     hours.appendChild(row);
   }
 }
@@ -97,6 +113,8 @@ fillReviewsHTML = (reviews = self.restaurant.reviews) => {
   const container = document.getElementById('reviews-container');
   const title = document.createElement('h2');
   title.innerHTML = 'Reviews';
+  title.setAttribute('aria-label',`${reviews.length} reviews`);
+  title.setAttribute('tabindex',0);
   container.appendChild(title);
 
   if (!reviews) {
@@ -106,33 +124,67 @@ fillReviewsHTML = (reviews = self.restaurant.reviews) => {
     return;
   }
   const ul = document.getElementById('reviews-list');
+  let aa=1;
   reviews.forEach(review => {
-    ul.appendChild(createReviewHTML(review));
+    ul.appendChild(createReviewHTML(review,aa));
+    aa++;
   });
   container.appendChild(ul);
+
 }
 
 /**
  * Create review HTML and add it to the webpage.
  */
-createReviewHTML = (review) => {
+createReviewHTML = (review,aa) => {
   const li = document.createElement('li');
-  const name = document.createElement('p');
+  li.setAttribute('tabindex',0);
+  li.setAttribute('aria-label', `Review ${aa}`);
+  const div = document.createElement('div');
+  div.className='review-inner';
+
+  const name = document.createElement('h3');
+  name.className='review-reviewer';
+  name.setAttribute('tabindex',0);
+  name.setAttribute('aria-label',`reviewer name ${review.name} date ${review.date}`);
   name.innerHTML = review.name;
-  li.appendChild(name);
+
 
   const date = document.createElement('p');
+  date.className='review-date';
   date.innerHTML = review.date;
-  li.appendChild(date);
+
+  const tbl = document.createElement("table");
+  tbl.setAttribute('width','100%');
+  const tblBody = document.createElement("tbody");
+  const row = document.createElement("tr");
+  const cell1 = document.createElement("td");
+  const cell2 = document.createElement("td");
+  cell1.setAttribute('align','left');
+  cell1.appendChild(name);
+  cell2.setAttribute('align','right');
+  cell2.appendChild(date);
+  row.appendChild(cell1);
+  row.appendChild(cell2);
+
+  tblBody.appendChild(row);
+  tbl.appendChild(tblBody);
+  li.appendChild(tbl);
+
 
   const rating = document.createElement('p');
+  rating.className='review-rating';
+  rating.setAttribute('aria-label',`review rating ${review.rating}`);
   rating.innerHTML = `Rating: ${review.rating}`;
-  li.appendChild(rating);
+  rating.setAttribute('tabindex',0);
+  div.appendChild(rating);
 
   const comments = document.createElement('p');
+  comments.setAttribute('aria-label',`review, ${review.comments}`);
   comments.innerHTML = review.comments;
-  li.appendChild(comments);
-
+  comments.setAttribute('tabindex',0);
+  div.appendChild(comments);
+li.appendChild(div);
   return li;
 }
 
