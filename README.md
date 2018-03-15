@@ -8,6 +8,59 @@ For the **Restaurant Reviews** projects, you will incrementally convert a static
 
 ## Project : Stage 2 Gulp instructions
 
-1)  gulp                 -> runs image resize (imagemagick must be installed) and a webserver on the root development folder with live reload
-2)  gulp dist            -> builds the project in dist folder with css,js minification and image resize (imagemagick must be installed)
-2)  gulp dist-serve      -> builds the project in dist folder with css,js minification and image resize (imagemagick must be installed) and runs a webserver on dist folder
+#### Check for Node and npm
+Make sure that you've installed Node and npm before attempting to install gulp.
+
+```sh
+node --version
+```
+```sh
+npm --version
+```
+
+#### Install the `gulp` command
+
+```sh
+npm install --global gulp-cli
+```
+
+#### Install `gulp` in your devDependencies
+
+Run this command in your project directory:
+
+```sh
+npm install --save-dev gulp@next
+```
+
+###### Install project dependancies
+```Install project dependancies
+# npm i
+```
+
+## Development And Distribution
+
+#### Development server
+
+Run the gulp command in your project directory (runs image resize and a webserver on the root development folder with live reload):
+
+```sh
+gulp
+```
+
+#### Distribution
+
+Run the gulp command in your project directory (builds the project in dist folder with css,js minification and image resize):
+
+```sh
+gulp dist
+```
+
+
+#### Distribution + webserver
+
+Run the gulp command in your project directory (builds the project in dist folder with css,js minification and image resize and runs a webserver on dist folder):
+
+```sh
+gulp dist-serve
+```
+
