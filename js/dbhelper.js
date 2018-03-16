@@ -12,9 +12,23 @@ class DBHelper {
     const port = 1337 // Change this to your server port
         return `http://localhost:${port}/restaurants/`;
   }
+  static get DATABASE_REVIEWS_URL() {
+    const port = 1337 // Change this to your server port
+        return `http://localhost:${port}/reviews/`;
+  }
   static openDB() {
-    return idb.open('adamoDB', 1, upgradeDB => {
-      const rests =upgradeDB.createObjectStore('restaurants', {keyPath: 'id'});
+    return idb.open('adamoDB', 3, upgradeDB => {
+      switch (upgradeDB.oldVersion) {
+        case 0:
+        const rests =upgradeDB.createObjectStore('restaurants', {keyPath: 'id'});
+        case 1:
+        const reviews =upgradeDB.createObjectStore('reviews', {keyPath: 'id'});
+        reviews.createIndex('restaurant_id', 'restaurant_id', {unique: false});
+        case 2:
+        //create a table to hold favorite actions when offline
+        const pendingFavorite =upgradeDB.createObjectStore('pending_favorite', {keyPath: 'id',autoIncrement:true});
+      }
+
     });
   }
 
@@ -35,6 +49,43 @@ class DBHelper {
       });
     });
   }
+
+  static saveReviewsToDB(reviews) {
+    //save data from db api to indexedDB for offline use
+    if (!('indexedDB' in window)) {
+      return null;
+    }
+
+    return DBHelper.openDB().then(db => {
+      //console.log(db);
+      const tx = db.transaction('reviews', 'readwrite');
+      const store = tx.objectStore('reviews');
+      return Promise.all(reviews.map(review => store.put(review))).then(() => {return reviews})
+      .catch(() => {
+        tx.abort();
+        throw Error('Restaurants were not added to db');
+      });
+    });
+  }
+
+  static savePendingFavorite(objs) {
+    //save data from db api to indexedDB for offline use
+    if (!('indexedDB' in window)) {
+      return null;
+    }
+
+    return DBHelper.openDB().then(db => {
+      //console.log(db);
+      const tx = db.transaction('pending_favorite', 'readwrite');
+      const store = tx.objectStore('pending_favorite');
+      return Promise.all(objs.map(obj => store.put(obj))).then(() => {return objs})
+      .catch(err => {
+        tx.abort();
+        throw Error('Favorites were not added to db');
+      });
+    });
+  }
+
 
   static getLocalRestaurantsData(){
     //get all restaurants from indexedDB when offline
@@ -57,6 +108,57 @@ class DBHelper {
         .objectStore('restaurants').get(parseInt(id));
     }).then(restaurant => {return restaurant});
   }
+
+
+  static getLocalReviewsByRestaurantId(id){
+    //get reviews by restaurant_id from indexedDB when offline
+    if (!('indexedDB' in window)) {
+      return null;
+    }
+    return DBHelper.openDB().then(db => {
+      return db.transaction('reviews')
+        .objectStore('reviews').index('restaurant_id').getAll(parseInt(id));
+    }).then(reviews => {return reviews});
+  }
+
+
+  static syncOfflineData(){
+    //send temp data to server and delete them locally
+    //first we check if there are any pending favorites
+
+   return DBHelper.openDB().then(db => {
+      return db.transaction('pending_favorite')
+        .objectStore('pending_favorite').getAll();
+    }).then(favorites => {
+      if(!favorites){
+        console.log('no sync');
+        return null;
+      }
+      return Promise.all(favorites.map(favorite => DBHelper.sendFavoritesToServer(favorite)))
+    }).then(favorites => {
+      if(!favorites){
+        return null;
+      }
+      //delete all pending reviews from local db
+      return DBHelper.openDB().then(db => {
+        //console.log(db);
+        const tx = db.transaction('pending_favorite', 'readwrite');
+        const store = tx.objectStore('pending_favorite');
+        return store.clear();
+      });
+    })
+    .catch(err => {
+        tx.abort();
+        throw Error('Panding favorites were not sent to server');
+        return null;
+      });
+
+  }
+
+ /* static sendFavoritesToServer(pending) {
+    return fetch(`${DBHelper.DATABASE_URL}${pending.restaurant_id}/?is_favorite=${pending.is_favorite}`,{method: 'put'});
+  }*/
+
 
   /**
    * Fetch all restaurants.
@@ -88,6 +190,51 @@ class DBHelper {
   );
 
   }
+
+  /**
+   * Toggle favorite  restaurant by its ID and add to localDB when offline.
+   */
+  static toggleFavorite(restaurant_id,favorite, callback) {
+   fetch(`${DBHelper.DATABASE_URL}${restaurant_id}/?is_favorite=${favorite}`,{method: 'put'})
+    .catch(() => {
+      //if offline we store the action to pending_favorites table to send it when online again
+      DBHelper.savePendingFavorite([{restaurant_id:parseInt(restaurant_id),is_favorite:`${favorite}`}])
+    }).then(() => DBHelper.getLocalRestaurantsDataById(restaurant_id))
+    .then(restaurant => {
+      restaurant.is_favorite=`${favorite}`;
+      DBHelper.saveRestaurantsToDB([restaurant])
+    });
+
+  }
+
+/**
+   * Send pending favorites to server
+   */
+  static sendFavoritesToServer(pending) {
+    return fetch(`${DBHelper.DATABASE_URL}${pending.restaurant_id}/?is_favorite=${pending.is_favorite}`,{method: 'put'});
+  }
+
+
+  /**
+   * Fetch revies by restaurant ID.
+   */
+  static fetchReviewsByRestaurantId(id, callback) {
+
+    fetch(`${DBHelper.DATABASE_REVIEWS_URL}?restaurant_id=${id}`).then(response => response.json())
+    .then(reviews => DBHelper.saveReviewsToDB(reviews))
+     .then(reviews => callback(null,reviews))
+     .catch(err => {
+      //no network get them from indexedDB
+      console.log('getting reviews local');
+      DBHelper.getLocalReviewsByRestaurantId(id).then(reviews => callback(null,reviews))
+      }
+    );
+
+    }
+
+
+
+
 
   /**
    * Fetch restaurants by a cuisine type with proper error handling.
@@ -215,6 +362,33 @@ class DBHelper {
 
 
   }
+
+/**
+   * Convert timestamp to Date.
+   */
+  static toDate(timestamp) {
+    return new Date(timestamp).toDateString();
+
+  }
+
+/**
+   * parse string to boolean
+   */
+  static parseBoolean(str) {
+    if(typeof str === 'boolean'){
+      return str;
+    }
+    switch (str.toLowerCase()) {
+      case "false":
+      return false;
+      break;
+      case "true":
+      return true;
+      break;
+    }
+  }
+
+
 
   /**
    * Map marker for a restaurant.

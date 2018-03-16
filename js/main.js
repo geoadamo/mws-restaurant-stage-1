@@ -30,19 +30,50 @@ window.initMap = () => {
 
 }
 
+/*
+  Listeners for offline state
+  */
+window.addEventListener('offline', (e) => {
+  toggleOffline(true);
+});
 
+window.addEventListener('online', (e) => {
+  toggleOffline(false);
+});
 
-
+toggleOffline = (offline,checkSync=true) =>{
+  if(offline){
+    document.getElementById('offline').style.visibility='visible';
+  }else{
+    document.getElementById('offline').style.visibility='hidden';
+    if(checkSync){
+    DBHelper.syncOfflineData();//when back online send temp data to server and delete them locally
+    }
+  }
+}
 
 
 /**
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', (event) => {
+  toggleOffline(!navigator.onLine,false);//check initial offline state
   createObserver();
   fetchNeighborhoods();
   fetchCuisines();
-  updateRestaurants();//moved this here to work offline
+
+  if(!navigator.onLine){
+    //if offline don't check for pending sync
+    updateRestaurants();//moved this here to work offline
+  }else{
+    //online first check if pending sync
+    DBHelper.syncOfflineData().then(() =>{
+      updateRestaurants();
+    });
+  }
+
+
+
 });
 
 createObserver= () => {
@@ -218,9 +249,69 @@ createRestaurantHTML = (restaurant) => {
   more.setAttribute('aria-label', `View details about ${restaurant.name} Restaurant`);
   more.href = DBHelper.urlForRestaurant(restaurant);
   div.append(more);
+
+
+  const fav = document.createElement('img');
+  fav.className = 'favorite';
+  fav.setAttribute('id',`fav-${restaurant.id}`);
+  fav.src ='icons/notfavorite.png';
+  fav.setAttribute('role',`button`);
+  fav.alt="Click to mark as favorite!";
+  fav.setAttribute('title',`Click to mark as favorite!`);
+  fav.setAttribute('aria-label',`Press enter to mark as favorite!`);
+  fav.setAttribute('tabindex', 0);
+  fav.setAttribute('data-is-favorite',`false`);
+  //first we check if the is_favorite property exists (a restaurant didn't have this value on the initial db)
+  //then we parse the string value to boolean
+  if(restaurant.is_favorite && DBHelper.parseBoolean(restaurant.is_favorite)){
+    fav.src ='icons/favorite.png';
+    fav.setAttribute('data-is-favorite',`true`);
+    fav.setAttribute('title',`Click to mark as not favorite!`);
+    fav.setAttribute('aria-label',`Press enter to mark as not favorite!`);
+  }
+  div.append(fav);
+  //we add a click listener to toggle a restaurant as Favorite
+  fav.addEventListener('click',(e) => {
+    toggleFavorite(e.target);
+  });
+  //we add a keydown listener to toggle Favorite with keyboard enter (ARIA)
+  fav.addEventListener('keydown',(e) => {
+    if(e.keyCode==13){
+    toggleFavorite(e.target);
+    }
+  });
+
   self.observer.observe(div);
-  return div
+  return div;
 }
+
+toggleFavorite = (elem) => {
+  let restaurant_id=elem.getAttribute('id').split('-')[1];
+  let is_favorite=DBHelper.parseBoolean(elem.getAttribute('data-is-favorite'));
+  DBHelper.toggleFavorite(restaurant_id,!is_favorite);
+  //change image
+  if(!is_favorite==true){
+    elem.src='icons/favorite.png';
+    elem.setAttribute('data-is-favorite',`true`);
+    elem.setAttribute('title',`Click to mark as not favorite!`);
+    elem.setAttribute('aria-label',`Press enter to mark as not favorite!`);
+    //announce it to scren readers
+    document.getElementById('filtered-results').innerHTML=`<p>Υου marked as favorite</p>`;
+  }else{
+    elem.src='icons/notfavorite.png';
+    elem.setAttribute('data-is-favorite',`false`);
+    elem.setAttribute('title',`Click to mark as favorite!`);
+    elem.setAttribute('aria-label',`Press enter to mark as favorite!`);
+    //announce it to scren readers
+    document.getElementById('filtered-results').innerHTML=`<p>Υου marked as not favorite</p>`;
+  }
+
+
+
+
+}
+
+
 
 /**
  * Add markers for current restaurants to the map.
