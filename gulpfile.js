@@ -4,10 +4,13 @@ var autoprefixer = require('gulp-autoprefixer');
 var concat = require('gulp-concat');
 var uglify = require('gulp-uglify');
 var cleanCSS = require('gulp-clean-css');
-var webserver = require('gulp-webserver');
 var imageResize = require('gulp-image-resize');
 var sourcemaps = require('gulp-sourcemaps');
 var uglify = require('gulp-uglify-es').default;
+var gzip = require('gulp-gzip');
+var browserSync = require('browser-sync').create();
+var compression   = require("compression");
+
 
 var paths = {
   styles: {
@@ -33,28 +36,28 @@ var paths = {
 
 gulp.task('default', gulp.series(create_smaller_images_dev,webserverRoot));
 
-gulp.task('dist', gulp.parallel(copy_html,copy_images,copy_icons,create_smaller_images_dist,styles,scripts));
+gulp.task('dist', gulp.parallel(copy_html,copy_images,copy_icons,create_smaller_images_dist,styles,styles_gzip,scripts,scripts_gzip));
 
-gulp.task('dist-serve', gulp.series(copy_html,copy_images,copy_icons,create_smaller_images_dist,styles,scripts,webserverDist));
+//gulp.task('dist-serve', gulp.series(copy_html,copy_images,copy_icons,create_smaller_images_dist,styles,styles_gzip,scripts,scripts_gzip,webserverDist));
 
 
 function webserverRoot(){
-  return gulp.src('/')
-    .pipe(webserver({
-      livereload: true,
-      directoryListing: false,
-      open: true,
-      port:8080
-    }));
+  return  browserSync.init({
+    server: {
+        baseDir: './'
+    },
+    port: 8080
+});
 }
 
 function webserverDist(){
-  return gulp.src('dist')
-    .pipe(webserver({
-      livereload: false,
-      open: true,
-      port:8080
-    }));
+  return browserSync.init({
+    server: {
+        baseDir: 'dist',
+        middleware: compression()
+    },
+    port: 8080
+});
 }
 
 
@@ -94,13 +97,28 @@ function scripts(){
         .pipe(uglify())
       .pipe(gulp.dest(paths.scripts.dest));
 }
+function scripts_gzip(){
+  return gulp.src(paths.scripts.src)
+        .pipe(uglify())
+        .pipe(gzip())
+      .pipe(gulp.dest(paths.scripts.dest));
+}
 
 function styles(){
 	return gulp.src(paths.styles.src)
 		.pipe(autoprefixer({
 			browsers: ['last 2 versions']
 		}))
-		.pipe(cleanCSS())
+    .pipe(cleanCSS())
+		.pipe(gulp.dest(paths.styles.dest))
+}
+function styles_gzip(){
+	return gulp.src(paths.styles.src)
+		.pipe(autoprefixer({
+			browsers: ['last 2 versions']
+		}))
+    .pipe(cleanCSS())
+    .pipe(gzip())
 		.pipe(gulp.dest(paths.styles.dest))
 }
 
